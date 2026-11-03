@@ -1,3 +1,4 @@
+#include "analyzer.h"
 #include "debug.h"
 #include "lexer.h"
 #include "parser.h"
@@ -33,6 +34,13 @@ void readlines() {
     Lexer lexer;
     lexer_init(&lexer, stdin);
     Token token;
+
+    // while ((token = lexer_next_token(&lexer)).type != END) {
+    //     print_token(token);
+    //     printf("\n");
+    // }
+    // return;
+
     Parser parser;
     parser_init(&parser, lexer);
     Program program = parser_read_program(&parser);
@@ -40,6 +48,8 @@ void readlines() {
         Statement statement = program.statements[i];
         print_statement(statement);
         printf("\n");
+
+        printf("%s\n", validate_statement(statement).description);
     }
 }
 

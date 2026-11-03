@@ -32,10 +32,10 @@ Statement parser_read_statement(Parser *parser) {
     Statement statement;
     if (parser->next_token.type == MNEMONIC) {
         statement.type = STATEMENT_INSTRUCTION;
-        parser_advance(parser);
-        Operand operand; 
         statement.data.instruction.mnemonic = parser->next_token.data.mnemonic.mnemonic;
         statement.data.instruction.operand_count = 0;
+        parser_advance(parser);
+        Operand operand; 
         while ((operand = parser_read_operand(parser)).type != OPERAND_INVALID) {
             statement.data.instruction.operands[statement.data.instruction.operand_count] = operand;
             statement.data.instruction.operand_count++;
@@ -43,6 +43,9 @@ Statement parser_read_statement(Parser *parser) {
                 break;
             }
             parser_advance(parser);
+            if (statement.data.instruction.operand_count == 3) {
+                break;
+            }
         }
         return statement;
     }
@@ -65,6 +68,9 @@ Program parser_read_program(Parser *parser) {
         }
         program.statements[program.count] = statement;
         program.count++;
+        if (statement.type == STATEMENT_INVALID) {
+            parser_advance(parser);
+        }
     }
     return program;
 }
