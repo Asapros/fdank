@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <elf.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #define BASE_VADDR 0x400000
 
@@ -33,12 +34,16 @@ void readlines() {
     Token token;
     Parser parser;
     parser_init(&parser, lexer);
-    while (true) {
-        parser_next_instruction(&parser);
-        if (parser.next_token.type == END) {
-            break;
+    Program program = parser_read_program(&parser);
+    for (size_t i = 0; i < program.count; i++) {
+        Statement statement = program.statements[i];
+        printf("statement %d\n", statement.type);
+        if (statement.type != STATEMENT_INSTRUCTION) {
+            continue;
         }
-    };
+        printf("mnemonic %d\n", statement.data.instruction.mnemonic);
+    }
+    free(program.statements);
 }
 
 int main() {

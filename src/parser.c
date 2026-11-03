@@ -1,5 +1,6 @@
 #include "lexer.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include "parser.h"
 
 void parser_advance(Parser *parser) {
@@ -11,43 +12,60 @@ void parser_init(Parser *parser, Lexer lexer) {
     parser_advance(parser);
 }
 
-void parser_read_mov(Parser *parser) {
-    if (parser->next_token.type != OP_MOV) {
-        return;
+Operand parser_read_operand(Parser *parser) {
+    Operand operand;
+    switch (parser->next_token.type) {
+        case REGISTER:
+            operand = (Operand) { .type = OPERAND_REGISTER, .data.reg.reg = parser->next_token.data.reg.reg };
+            parser_advance(parser);
+            break;
+        case VALUE:
+            operand = (Operand) { .type = OPERAND_VALUE, .data.value.value = parser->next_token.data.value.value };
+            parser_advance(parser);
+            break;
+        default:
+            return (Operand) { .type = OPERAND_INVALID, .data.error = parser->next_token };
     }
-    parser_advance(parser);
-    if (!is_register(parser->next_token.type)) {
-        return;
-    }
-    parser_advance(parser);
-    if (parser->next_token.type != COMMA) {
-        return;
-    }
-    parser_advance(parser);
-    if (is_register(parser->next_token.type)) {
-        parser_advance(parser);
-        printf("register register mov\n");
-        return;
-    }
-    if (parser->next_token.type == INTEGER) {
-        parser_advance(parser);
-        printf("register integer mov\n");
-        return;
-    }
-}
-void parser_read_syscall(Parser *parser) {
-    parser_advance(parser);
-    printf("syscall\n");
-    return;
+    return operand;
 }
 
-void parser_next_instruction(Parser *parser) {
-    if (parser->next_token.type == OP_MOV) {
-        parser_read_mov(parser);
-        return;
+Statement parser_read_statement(Parser *parser) {
+    Statement statement;
+    if (parser->next_token.type == MNEMONIC) {
+        statement.type = STATEMENT_INSTRUCTION;
+        parser_advance(parser);
+        Operand operand; 
+        statement.data.instruction.mnemonic = parser->next_token.data.mnemonic.mnemonic;
+        statement.data.instruction.operand_count = 0;
+        while ((operand = parser_read_operand(parser)).type != OPERAND_INVALID) {
+            statement.data.instruction.operands[statement.data.instruction.operand_count] = operand;
+            statement.data.instruction.operand_count++;
+            if (parser->next_token.type != COMMA) {
+                break;
+            }
+            parser_advance(parser);
+        }
+        return statement;
     }
-    if (parser->next_token.type == OP_SYSCALL) {
-        parser_read_syscall(parser);
-        return;
+    if (parser->next_token.type == END) {
+        statement.type = STATEMENT_END;
+        return statement;
     }
+    statement.type = STATEMENT_INVALID;
+    statement.data.error.token = parser->next_token;
+    return statement;
+}
+
+Program parser_read_program(Parser *parser) {
+    Program program = { .count = 0, .statements = malloc(sizeof(Statement) * 8), .allocated = 8 };
+    Statement statement;
+    while ((statement = parser_read_statement(parser)).type != STATEMENT_END) {
+        if (program.count == program.allocated) {
+            program.allocated *= 2;
+            program.statements = realloc(program.statements, sizeof(Statement) * program.allocated);
+        }
+        program.statements[program.count] = statement;
+        program.count++;
+    }
+    return program;
 }

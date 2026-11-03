@@ -3,8 +3,23 @@
 #include <string.h>
 #include "lexer.h"
 
-bool is_register(TokenType type) {
-    return type >= REG_EAX && type <= REG_EDI;
+Register recognise_register(const char *string) {
+    for (size_t i = 0; i < sizeof(REGISTER_NAMES) / sizeof(RegisterLookupPair); i++) {
+        if (strcmp(string, REGISTER_NAMES[i].name) == 0) return REGISTER_NAMES[i].reg;
+    }
+    return INVALID_REGISTER;
+}
+
+Mnemonic recognise_mnemonic(const char *string) {
+    for (size_t i = 0; i < sizeof(MNEMONIC_NAMES) / sizeof(MnemonicLookupPair); i++) {
+        if (strcmp(string, MNEMONIC_NAMES[i].name) == 0) return MNEMONIC_NAMES[i].mnemonic;
+    }
+    return INVALID_MNEMONIC;
+}
+
+bool is_mnemonic(const char *string) {
+    return (strcmp(string, "mov") == 0)
+        || (strcmp(string, "syscall") == 0);
 }
 
 void lexer_fill_buffer(Lexer *lexer) {
@@ -50,18 +65,15 @@ bool is_digit(char character) {
 }
 
 Token lexer_read_integer(Lexer *lexer) {
-    Token token = { .type = INTEGER };
+    Token token = { .type = VALUE };
     size_t index = 0;
     while (is_digit(lexer_peek(lexer))) {
-        if (index == TOKEN_SIZE) {
-            token.type = ERROR;
-            return token;
-        }
-        token.value[index] = lexer_peek(lexer);
+        token.data.value.value *= 10;
+        token.data.value.value += lexer_peek(lexer) - '0';
+        // TODO handle overflow
         lexer_advance(lexer);
         index++;
     }
-    token.value[index] = '\0';
     return token;
 }
 
@@ -70,7 +82,7 @@ Token lexer_read_punctuation(Lexer *lexer) {
     lexer_advance(lexer);
     switch (first) {
         case ',':
-            return (Token) { .type = COMMA, .value = "," };
+            return (Token) { .type = COMMA };
     }
     return (Token) { .type = ERROR };
 }
@@ -81,28 +93,25 @@ Token lexer_read_identifier(Lexer *lexer) {
     while (!is_whitespace(lexer_peek(lexer)) && !is_punctuation(lexer_peek(lexer))) {
         if (index == TOKEN_SIZE) {
             token.type = ERROR;
+            token.data.error.error = OVERFLOW;
             return token;
         }
-        token.value[index] = lexer_peek(lexer);
+        token.data.identifier.name[index] = lexer_peek(lexer);
         lexer_advance(lexer);
         index++;
     }
-    token.value[index] = '\0';
+    token.data.identifier.name[index] = '\0';
     
-    if (strcmp(token.value, "mov") == 0) {
-        token.type = OP_MOV;
+    Register reg = recognise_register(token.data.identifier.name);
+    if (reg != INVALID_REGISTER) {
+        token.type = REGISTER;
+        token.data.reg.reg = reg;
         return token;
     }
-    if (strcmp(token.value, "syscall") == 0) {
-        token.type = OP_SYSCALL;
-        return token;
-    }
-    if (strcmp(token.value, "eax") == 0) {
-        token.type = REG_EAX;
-        return token;
-    }
-    if (strcmp(token.value, "edi") == 0) {
-        token.type = REG_EDI;
+    Mnemonic mnemonic = recognise_mnemonic(token.data.identifier.name);
+    if (mnemonic != INVALID_MNEMONIC) {
+        token.type = MNEMONIC;
+        token.data.mnemonic.mnemonic = mnemonic;
         return token;
     }
 
