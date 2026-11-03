@@ -1,3 +1,4 @@
+#include "debug.h"
 #include "lexer.h"
 #include "parser.h"
 #include <stdio.h>
@@ -37,13 +38,9 @@ void readlines() {
     Program program = parser_read_program(&parser);
     for (size_t i = 0; i < program.count; i++) {
         Statement statement = program.statements[i];
-        printf("statement %d\n", statement.type);
-        if (statement.type != STATEMENT_INSTRUCTION) {
-            continue;
-        }
-        printf("mnemonic %d\n", statement.data.instruction.mnemonic);
+        print_statement(statement);
+        printf("\n");
     }
-    free(program.statements);
 }
 
 int main() {
