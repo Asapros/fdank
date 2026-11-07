@@ -1,4 +1,4 @@
 mov eax, 60
-mov edi, 2137
+mov edi, 69
 syscall
 
